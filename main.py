@@ -7,22 +7,22 @@ speakers = [
     'YW', 'RS', 'PRI'
 ]
 speaker_count = {
-    'HC1': 4, 'HC2': 4, 'HC3': 4, 'HC4': 4, 'HC5': 4, 'HC6': 4, 'HC7': 4, 'HC8': 4, 'HC9': 4,
-    'SSP': 2, 'YMP': 2, 'YW': 4, 'RS': 4, 'PRI': 4, 'YM': 2, 'SS': 2
+    'HC1': 3, 'HC2': 3, 'HC3': 3, 'HC4': 3, 'HC5': 3, 'HC6': 3, 'HC7': 3, 'HC8': 3, 'HC9': 3,
+    'SSP': 3, 'YMP': 3, 'YW': 4, 'RS': 4, 'PRI': 4, 'YM': 2, 'SS': 2
 }
 
 # Define units and their months
 units = {
     'Durham 5th': ['Jan', 'Feb', 'March', 'April', 'May', 'June', 'July', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
     'Roxboro': ['Jan', 'Feb', 'March', 'April', 'May', 'June', 'July', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-    'Durham YSA': ['Jan', 'April', 'July', 'Oct'],
-    'Chapel Hill 1st': ['March', 'June', 'Sep', 'Dec'],
-    'Chapel Hill 2nd': ['Jan', 'April', 'July', 'Oct'],
-    'Durham 1st': ['March', 'June', 'Sep', 'Dec'],
-    'Durham 2nd': ['Feb', 'May', 'Aug', 'Nov'],
-    'Hillsborough': ['March', 'June', 'Sep', 'Dec'],
-    'Mebane': ['Feb', 'May', 'Aug', 'Nov'],
-    'FSLG-CH1': ['Feb', 'May', 'Aug', 'Nov']
+    'Durham YSA': ['June', 'Sep', 'Dec'],
+    'Chapel Hill 1st': ['June', 'Sep', 'Dec'],
+    'Chapel Hill 2nd': ['April', 'July', 'Oct'],
+    'Durham 1st': ['May', 'Aug', 'Nov'],
+    'Durham 2nd': ['June', 'Sep', 'Dec'],
+    'Hillsborough': ['May', 'Aug', 'Nov'],
+    'Mebane': ['April', 'July', 'Oct'],
+    'FSLG-CH1': ['Jan', 'April', 'July', 'Oct']
 }
 
 # Create all unit-month pairs and their quarter mappings
@@ -57,9 +57,19 @@ speaker_vars = [Int(f'speaker_{i}') for i in range(num_unit_months)]
 # Initialize solver
 solver = Solver()
 
+
+
+
+
+
 # Constraint 1: Each speaker variable must be in the range of speakers
 for var in speaker_vars:
     solver.add(And(0 <= var, var < num_speakers))
+
+
+
+
+
 
 # Constraint 2: Each speaker must have exactly their permitted number of assignments
 for speaker in speakers:
@@ -68,19 +78,28 @@ for speaker in speakers:
     total = Sum([If(var == idx, 1, 0) for var in speaker_vars])
     solver.add(total == count)
 
+
+
+
+
+
 # Constraint 3: No speaker can speak at the same unit more than once
 unit_to_indices = {}
 for i, (unit, month) in enumerate(unit_month_pairs):
     if unit not in unit_to_indices:
         unit_to_indices[unit] = []
     unit_to_indices[unit].append(i)
-
 for unit, indices in unit_to_indices.items():
     for speaker_idx in range(num_speakers):
         total = Sum([If(speaker_vars[i] == speaker_idx, 1, 0) for i in indices])
         solver.add(total <= 1)
 
-# Constraint 4: For special units, no speaker can have more than 2 assignments
+
+
+
+
+
+# Constraint 4: Each speaker must have at most 2 assignments in special units
 special_units = ['Durham 5th', 'Roxboro', 'FSLG-CH1']
 for speaker_idx in range(num_speakers):
     total = 0
@@ -90,73 +109,86 @@ for speaker_idx in range(num_speakers):
                 total += If(speaker_vars[i] == speaker_idx, 1, 0)
     solver.add(total <= 2)
 
-# Constraint 5: Speakers with 4 assignments must have one assignment per quarter
-four_assignment_speakers = [s for s in speakers if speaker_count[s] == 4]
-for speaker in four_assignment_speakers:
-    speaker_idx = speaker_indices[speaker]
-    for q in [1, 2, 3, 4]:
-        total = 0
-        for i, (unit, month) in enumerate(unit_month_pairs):
-            if quarter_map[(unit, month)] == q:
-                total += If(speaker_vars[i] == speaker_idx, 1, 0)
-        solver.add(total == 1)
-
-
-ym_idx = speaker_indices['YM']
-ymp_idx = speaker_indices['YMP']
-ss_idx = speaker_indices['SS']
-ssp_idx = speaker_indices['SSP']
-
-# Constraint 6: YM/YMP must use at least 3 distinct units
-for unit, indices in unit_to_indices.items():
-    total = Sum([If(Or(speaker_vars[i] == ym_idx, speaker_vars[i] == ymp_idx), 1, 0) for i in indices])
-    solver.add(total <= 1)
-
-# Ensure exactly 3 distinct units are used by YM and YMP
-total_units = Sum([If(Or(speaker_vars[i] == ym_idx, speaker_vars[i] == ymp_idx), 1, 0) for i in range(num_unit_months)])
-solver.add(total_units >= 3)
-
-# Constraint 7: YM/YMP must have assignments in alternating quarters
-# Ensure YM and YMP do not share any quarter
-for q in [1, 2, 3, 4]:
-    total = 0
-    for i, (unit, month) in enumerate(unit_month_pairs):
-        if quarter_map[(unit, month)] == q:
-            total += If(speaker_vars[i] == ym_idx, 1, 0)
-            total += If(speaker_vars[i] == ymp_idx, 1, 0)
-    solver.add(total <= 1)
-
-
-# Constraint 8: SS/SSP cannot share any quarter
-# Ensure each unit is used at most once by SS or SSP
-for unit, indices in unit_to_indices.items():
-    total = Sum([If(Or(speaker_vars[i] == ss_idx, speaker_vars[i] == ssp_idx), 1, 0) for i in indices])
-    solver.add(total <= 1)
-
-# Ensure exactly 3 distinct units are used by SS and SSP
-total_units = Sum([If(Or(speaker_vars[i] == ss_idx, speaker_vars[i] == ssp_idx), 1, 0) for i in range(num_unit_months)])
-solver.add(total_units >= 3)
-
-# Ensure YM and YMP do not share any quarter
-for q in [1, 2, 3, 4]:
-    total = 0
-    for i, (unit, month) in enumerate(unit_month_pairs):
-        if quarter_map[(unit, month)] == q:
-            total += If(speaker_vars[i] == ss_idx, 1, 0)
-            total += If(speaker_vars[i] == ssp_idx, 1, 0)
-    solver.add(total <= 1)
 
 
 
-# # Constraint 7: YM and YMP combined must be on 4 different units
-# for unit, indices in unit_to_indices.items():
-#     total = Sum([If(Or(speaker_vars[i] == ym_idx, speaker_vars[i] == ymp_idx), 1, 0) for i in indices])
-#     solver.add(total <= 1)
-#
-# # Constraint 8: SS and SSP combined must be on 4 different units
-# for unit, indices in unit_to_indices.items():
-#     total = Sum([If(Or(speaker_vars[i] == ss_idx, speaker_vars[i] == ssp_idx), 1, 0) for i in indices])
-#     solver.add(total <= 1)
+
+
+# Constraint 5: Each speaker with 4 assignments must have one assignment per quarter
+for speaker in speakers:
+    if speaker_count[speaker] == 4:
+        idx = speaker_indices[speaker]
+        for q in [1, 2, 3, 4]:
+            total = Sum([
+                If(And(speaker_vars[i] == idx, quarter_map[(unit, month)] == q), 1, 0)
+                for i, (unit, month) in enumerate(unit_month_pairs)
+            ])
+            solver.add(total == 1)
+
+
+
+# Constraint 6: Each speaker with 3 assignments must have one assignment every 4 months
+for speaker in speakers:
+    if speaker_count[speaker] == 3:
+        idx = speaker_indices[speaker]
+        month_order = {'Jan': 1, 'Feb': 2, 'March': 3, 'April': 4, 'May': 5, 'June': 6,
+                       'July': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12}
+        for i in range(num_unit_months):
+            for j in range(i + 1, num_unit_months):
+                unit1, month1 = unit_month_pairs[i]
+                unit2, month2 = unit_month_pairs[j]
+                m1, m2 = month_order[month1], month_order[month2]
+                diff = abs(m2 - m1)
+                solver.add(Or(speaker_vars[i] != idx, speaker_vars[j] != idx, diff >= 4))
+
+
+
+# Constraint 7: Each speaker with 2 assignments must have one assignment every 6 months
+for speaker in speakers:
+    if speaker_count[speaker] == 2:
+        idx = speaker_indices[speaker]
+        month_order = {'Jan': 1, 'Feb': 2, 'March': 3, 'April': 4, 'May': 5, 'June': 6,
+                       'July': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12}
+        for i in range(num_unit_months):
+            for j in range(i + 1, num_unit_months):
+                unit1, month1 = unit_month_pairs[i]
+                unit2, month2 = unit_month_pairs[j]
+                m1, m2 = month_order[month1], month_order[month2]
+                diff = abs(m2 - m1)
+                solver.add(Or(speaker_vars[i] != idx, speaker_vars[j] != idx, diff >= 6))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Check for solution
 if solver.check() == sat:
