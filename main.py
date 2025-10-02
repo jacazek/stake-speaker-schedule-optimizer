@@ -46,6 +46,12 @@ for unit, months in units.items():
         unit_month_pairs.append((unit, month))
         quarter_map[(unit, month)] = get_quarter(month)
 
+period_map = {
+    'Jan': 1, 'Feb': 1, 'March': 1, 'April': 1,
+    'May': 2, 'June': 2, 'July': 2, 'Aug': 2,
+    'Sep': 3, 'Oct': 3, 'Nov': 3, 'Dec': 3
+}
+
 # Map speakers to indices
 speaker_indices = {s: i for i, s in enumerate(speakers)}
 num_speakers = len(speakers)
@@ -127,35 +133,41 @@ for speaker in speakers:
 
 
 
-# Constraint 6: Each speaker with 3 assignments must have one assignment every 4 months
+# Precompute: for each speaker and period, which unit-month indices are relevant
+speaker_period_indices = {}
+for speaker in speakers:
+    idx = speaker_indices[speaker]
+    speaker_period_indices[idx] = {p: [] for p in [1, 2, 3]}
+    for i, (unit, month) in enumerate(unit_month_pairs):
+        period = period_map[month]
+        speaker_period_indices[idx][period].append(i)
+
+# Constraint 6: Each speaker with 3 assignments must have exactly one assignment per period (1, 2, 3)
 for speaker in speakers:
     if speaker_count[speaker] == 3:
         idx = speaker_indices[speaker]
-        month_order = {'Jan': 1, 'Feb': 2, 'March': 3, 'April': 4, 'May': 5, 'June': 6,
-                       'July': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12}
-        for i in range(num_unit_months):
-            for j in range(i + 1, num_unit_months):
-                unit1, month1 = unit_month_pairs[i]
-                unit2, month2 = unit_month_pairs[j]
-                m1, m2 = month_order[month1], month_order[month2]
-                diff = abs(m2 - m1)
-                solver.add(Or(speaker_vars[i] != idx, speaker_vars[j] != idx, diff >= 4))
-
-
-
-# Constraint 7: Each speaker with 2 assignments must have one assignment every 6 months
-for speaker in speakers:
-    if speaker_count[speaker] == 2:
-        idx = speaker_indices[speaker]
-        month_order = {'Jan': 1, 'Feb': 2, 'March': 3, 'April': 4, 'May': 5, 'June': 6,
-                       'July': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12}
-        for i in range(num_unit_months):
-            for j in range(i + 1, num_unit_months):
-                unit1, month1 = unit_month_pairs[i]
-                unit2, month2 = unit_month_pairs[j]
-                m1, m2 = month_order[month1], month_order[month2]
-                diff = abs(m2 - m1)
-                solver.add(Or(speaker_vars[i] != idx, speaker_vars[j] != idx, diff >= 6))
+        for period in [1, 2, 3]:
+            # Only sum over the unit-months in this period for this speaker
+            total = Sum([
+                If(speaker_vars[i] == idx, 1, 0)
+                for i in speaker_period_indices[idx][period]
+            ])
+            solver.add(total == 1)
+#
+#
+# # Constraint 7: Each speaker with 2 assignments must have one assignment every 6 months
+# for speaker in speakers:
+#     if speaker_count[speaker] == 2:
+#         idx = speaker_indices[speaker]
+#         month_order = {'Jan': 1, 'Feb': 2, 'March': 3, 'April': 4, 'May': 5, 'June': 6,
+#                        'July': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12}
+#         for i in range(num_unit_months):
+#             for j in range(i + 1, num_unit_months):
+#                 unit1, month1 = unit_month_pairs[i]
+#                 unit2, month2 = unit_month_pairs[j]
+#                 m1, m2 = month_order[month1], month_order[month2]
+#                 diff = abs(m2 - m1)
+#                 solver.add(Or(speaker_vars[i] != idx, speaker_vars[j] != idx, diff >= 6))
 
 
 
