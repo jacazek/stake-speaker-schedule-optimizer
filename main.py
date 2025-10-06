@@ -3,12 +3,14 @@ import itertools
 
 # Define speakers and their allowed number of assignments
 speakers = [
-    'SSP', 'SS', 'YMP', 'YM', 'HC1', 'HC2', 'HC3', 'HC4', 'HC5', 'HC6', 'HC7', 'HC8', 'HC9',
-    'YW', 'RS', 'PRI'
+    'HC1', 'HC2', 'HC3', 'HC4', 'HC5', 'HC6', 'HC7', 'HC8', 'HC9', 'SSP', 'YMP', # 3
+    'SS',  'YM', # 2
+    'YW', 'RS', 'PRI' # 4
 ]
 speaker_count = {
-    'HC1': 3, 'HC2': 3, 'HC3': 3, 'HC4': 3, 'HC5': 3, 'HC6': 3, 'HC7': 3, 'HC8': 3, 'HC9': 3,
-    'SSP': 3, 'YMP': 3, 'YW': 4, 'RS': 4, 'PRI': 4, 'YM': 2, 'SS': 2
+    'HC1': 3, 'HC2': 3, 'HC3': 3, 'HC4': 3, 'HC5': 3, 'HC6': 3, 'HC7': 3, 'HC8': 3, 'HC9': 3, 'SSP': 3, 'YMP': 3,
+    'YM': 2, 'SS': 2,
+    'YW': 4, 'RS': 4, 'PRI': 4
 }
 
 # Define units and their months
@@ -61,16 +63,15 @@ num_unit_months = len(unit_month_pairs)
 speaker_vars = [Int(f'speaker_{i}') for i in range(num_unit_months)]
 
 # Initialize solver
-solver = Solver()
+solver = Optimize()
 
 
 
-
-
+a1, a2, a3, a4, a5 = Bools('a1 a2 a3 a4 a5')
 
 # Constraint 1: Each speaker variable must be in the range of speakers
 for var in speaker_vars:
-    solver.add(And(0 <= var, var < num_speakers))
+    solver.add(Implies(a1, And(0 <= var, var < num_speakers)))
 
 
 
@@ -82,7 +83,7 @@ for speaker in speakers:
     idx = speaker_indices[speaker]
     count = speaker_count[speaker]
     total = Sum([If(var == idx, 1, 0) for var in speaker_vars])
-    solver.add(total == count)
+    solver.add(Implies(a2, total == count))
 
 
 
@@ -98,7 +99,7 @@ for i, (unit, month) in enumerate(unit_month_pairs):
 for unit, indices in unit_to_indices.items():
     for speaker_idx in range(num_speakers):
         total = Sum([If(speaker_vars[i] == speaker_idx, 1, 0) for i in indices])
-        solver.add(total <= 1)
+        solver.add(Implies(a3, total <= 1))
 
 
 
@@ -113,89 +114,64 @@ for speaker_idx in range(num_speakers):
         if unit in unit_to_indices:
             for i in unit_to_indices[unit]:
                 total += If(speaker_vars[i] == speaker_idx, 1, 0)
-    solver.add(total <= 2)
+    solver.add(Implies(a4, total <= 2))
 
 
+# Precompute month order for distance checks
+month_order = {
+    'Jan': 1, 'Feb': 2, 'March': 3, 'April': 4, 'May': 5, 'June': 6,
+    'July': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12
+}
 
+# Constraint 5: For each speaker, every pair of assignments must be at least `min_months` apart,
+# where `min_months` depends on the speaker's total assignment count.
+# - 3 assignments → min 4 months apart
+# - 4 assignments → min 3 months apart
+# - 2 assignments → min 6 months apart
+# (Note: We skip speakers with 1 assignment since no pairs exist.)
+soft_months = {
+    2: 6,
+    3: 4,
+    4: 3
+}
 
-
-
-# Constraint 5: Each speaker with 4 assignments must have one assignment per quarter
-for speaker in speakers:
-    if speaker_count[speaker] == 4:
-        idx = speaker_indices[speaker]
-        for q in [1, 2, 3, 4]:
-            total = Sum([
-                If(And(speaker_vars[i] == idx, quarter_map[(unit, month)] == q), 1, 0)
-                for i, (unit, month) in enumerate(unit_month_pairs)
-            ])
-            solver.add(total == 1)
-
-
-
-# Precompute: for each speaker and period, which unit-month indices are relevant
-speaker_period_indices = {}
+hard_months = {
+    2: 5,
+    3: 3,
+    4: 2
+}
 for speaker in speakers:
     idx = speaker_indices[speaker]
-    speaker_period_indices[idx] = {p: [] for p in [1, 2, 3]}
-    for i, (unit, month) in enumerate(unit_month_pairs):
-        period = period_map[month]
-        speaker_period_indices[idx][period].append(i)
+    count = speaker_count[speaker]
 
-# Constraint 6: Each speaker with 3 assignments must have exactly one assignment per period (1, 2, 3)
-for speaker in speakers:
-    if speaker_count[speaker] == 3:
-        idx = speaker_indices[speaker]
-        for period in [1, 2, 3]:
-            # Only sum over the unit-months in this period for this speaker
-            total = Sum([
-                If(speaker_vars[i] == idx, 1, 0)
-                for i in speaker_period_indices[idx][period]
-            ])
-            solver.add(total == 1)
-#
-#
-# # Constraint 7: Each speaker with 2 assignments must have one assignment every 6 months
-# for speaker in speakers:
-#     if speaker_count[speaker] == 2:
-#         idx = speaker_indices[speaker]
-#         month_order = {'Jan': 1, 'Feb': 2, 'March': 3, 'April': 4, 'May': 5, 'June': 6,
-#                        'July': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12}
-#         for i in range(num_unit_months):
-#             for j in range(i + 1, num_unit_months):
-#                 unit1, month1 = unit_month_pairs[i]
-#                 unit2, month2 = unit_month_pairs[j]
-#                 m1, m2 = month_order[month1], month_order[month2]
-#                 diff = abs(m2 - m1)
-#                 solver.add(Or(speaker_vars[i] != idx, speaker_vars[j] != idx, diff >= 6))
+    # Skip if fewer than 2 assignments (no pairs to check)
+    if count != 3:
+        continue
 
+    # Define minimum required month gap based on count
+    min_soft_months = soft_months.get(count, 1)  # Default to 1 if not in map (shouldn't happen)
+    min_hard_months = hard_months.get(count, 1)
 
+    # Check all pairs of unit-month indices for this speaker
+    for i in range(num_unit_months):
+        for j in range(i + 1, num_unit_months):
+            unit_i, month_i = unit_month_pairs[i]
+            unit_j, month_j = unit_month_pairs[j]
+            m1, m2 = month_order[month_i], month_order[month_j]
+            month_diff = abs(m2 - m1)
 
+            # If both assignments are to this speaker, enforce month_diff >= min_months
+            solver.add_soft(Or(
+                speaker_vars[i] != idx,
+                speaker_vars[j] != idx,
+                month_diff >= min_soft_months
+            ), weight=10)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+            solver.add(Implies(a5, Or(
+                speaker_vars[i] != idx,
+                speaker_vars[j] != idx,
+                month_diff >= min_hard_months
+            )))
 
 
 
@@ -203,7 +179,7 @@ for speaker in speakers:
 
 
 # Check for solution
-if solver.check() == sat:
+if solver.check(a1, a2, a3, a4, a5) == sat:
     model = solver.model()
     assignments = []
     for i in range(num_unit_months):
@@ -218,3 +194,5 @@ if solver.check() == sat:
         print(f"{unit},{month},{speaker}")
 else:
     print("No solution found.")
+    core = solver.unsat_core()
+    print("Conflicting assumptions: ", core)
