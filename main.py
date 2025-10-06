@@ -71,7 +71,7 @@ a1, a2, a3, a4, a5 = Bools('a1 a2 a3 a4 a5')
 
 # Constraint 1: Each speaker variable must be in the range of speakers
 for var in speaker_vars:
-    solver.add(Implies(a1, And(0 <= var, var < num_speakers)))
+    solver.add(And(0 <= var, var < num_speakers))
 
 
 
@@ -83,7 +83,7 @@ for speaker in speakers:
     idx = speaker_indices[speaker]
     count = speaker_count[speaker]
     total = Sum([If(var == idx, 1, 0) for var in speaker_vars])
-    solver.add(Implies(a2, total == count))
+    solver.add(total == count)
 
 
 
@@ -99,7 +99,7 @@ for i, (unit, month) in enumerate(unit_month_pairs):
 for unit, indices in unit_to_indices.items():
     for speaker_idx in range(num_speakers):
         total = Sum([If(speaker_vars[i] == speaker_idx, 1, 0) for i in indices])
-        solver.add(Implies(a3, total <= 1))
+        solver.add(total <= 1)
 
 
 
@@ -114,7 +114,7 @@ for speaker_idx in range(num_speakers):
         if unit in unit_to_indices:
             for i in unit_to_indices[unit]:
                 total += If(speaker_vars[i] == speaker_idx, 1, 0)
-    solver.add(Implies(a4, total <= 2))
+    solver.add(total <= 2)
 
 
 # Constraint 5: Prevent SS and SSP from being scheduled in the same month
@@ -169,20 +169,29 @@ soft_months = {
 
 hard_months = {
     2: 5,
-    3: 3,
+    3: 2,
     4: 2
+}
+
+weights = {
+    # Higher weight is higher priority
+    2: 7, # YM, SS
+    3: 5, # HC, SSP, YMP
+    4: 10 # RS, PRI, YW
 }
 for speaker in speakers:
     idx = speaker_indices[speaker]
     count = speaker_count[speaker]
 
     # Skip if fewer than 2 assignments (no pairs to check)
-    if count > 3:
+    if count < 2:
         continue
 
     # Define minimum required month gap based on count
     min_soft_months = soft_months.get(count, 1)  # Default to 1 if not in map (shouldn't happen)
+    soft_weight = weights.get(count, 1)
     min_hard_months = hard_months.get(count, 1)
+
 
     # Check all pairs of unit-month indices for this speaker
     for i in range(num_unit_months):
@@ -197,7 +206,7 @@ for speaker in speakers:
                 speaker_vars[i] != idx,
                 speaker_vars[j] != idx,
                 month_diff >= min_soft_months
-            ), weight=10)
+            ), weight=soft_weight)
 
             solver.add(Or(
                 speaker_vars[i] != idx,
