@@ -117,13 +117,45 @@ for speaker_idx in range(num_speakers):
     solver.add(Implies(a4, total <= 2))
 
 
+# Constraint 5: Prevent SS and SSP from being scheduled in the same month
+index_SS = speaker_indices['SS']
+index_SSP = speaker_indices['SSP']
+months = set()
+for unit, months_list in units.items():
+    months.update(months_list)
+for month in months:
+    indices = [i for i, (_, m) in enumerate(unit_month_pairs) if m == month]
+    if not indices:
+        continue
+    A = Or([speaker_vars[i] == index_SS for i in indices])
+    B = Or([speaker_vars[i] == index_SSP for i in indices])
+    solver.add(Not(And(A, B)))
+
+
+# Constraint 6: Prevent YM and YMP from being scheduled in the same month
+index_YM = speaker_indices['YM']
+index_YMP = speaker_indices['YMP']
+months = set()
+for unit, months_list in units.items():
+    months.update(months_list)
+for month in months:
+    indices = [i for i, (_, m) in enumerate(unit_month_pairs) if m == month]
+    if not indices:
+        continue
+    A = Or([speaker_vars[i] == index_YM for i in indices])
+    B = Or([speaker_vars[i] == index_YMP for i in indices])
+    solver.add(Not(And(A, B)))
+
+
+
+
 # Precompute month order for distance checks
 month_order = {
     'Jan': 1, 'Feb': 2, 'March': 3, 'April': 4, 'May': 5, 'June': 6,
     'July': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12
 }
 
-# Constraint 5: For each speaker, every pair of assignments must be at least `min_months` apart,
+# Constraint 7: For each speaker, every pair of assignments must be at least `min_months` apart,
 # where `min_months` depends on the speaker's total assignment count.
 # - 3 assignments → min 4 months apart
 # - 4 assignments → min 3 months apart
