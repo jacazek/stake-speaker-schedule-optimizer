@@ -168,9 +168,9 @@ soft_months = {
 }
 
 hard_months = {
-    2: 5,
-    3: 2,
-    4: 2
+    2: 6,
+    3: 3,
+    4: 3
 }
 
 weights = {
@@ -202,11 +202,11 @@ for speaker in speakers:
             month_diff = abs(m2 - m1)
 
             # If both assignments are to this speaker, enforce month_diff >= min_months
-            solver.add_soft(Or(
-                speaker_vars[i] != idx,
-                speaker_vars[j] != idx,
-                month_diff >= min_soft_months
-            ), weight=soft_weight)
+            # solver.add_soft(Or(
+            #     speaker_vars[i] != idx,
+            #     speaker_vars[j] != idx,
+            #     month_diff >= min_soft_months
+            # ), weight=soft_weight)
 
             solver.add(Or(
                 speaker_vars[i] != idx,
