@@ -145,7 +145,7 @@ for speaker in speakers:
     count = speaker_count[speaker]
 
     # Skip if fewer than 2 assignments (no pairs to check)
-    if count != 3:
+    if count > 3:
         continue
 
     # Define minimum required month gap based on count
@@ -167,11 +167,11 @@ for speaker in speakers:
                 month_diff >= min_soft_months
             ), weight=10)
 
-            solver.add(Implies(a5, Or(
+            solver.add(Or(
                 speaker_vars[i] != idx,
                 speaker_vars[j] != idx,
                 month_diff >= min_hard_months
-            )))
+            ))
 
 
 
