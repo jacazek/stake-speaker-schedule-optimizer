@@ -6,9 +6,9 @@ from .base import Constraint
 class AssignmentCountsConstraint(Constraint):
     """Each speaker must have exactly their permitted number of assignments."""
 
-    def add(self, ctx):
-        for speaker in ctx.speakers:
-            idx = ctx.speaker_indices[speaker]
-            count = ctx.speaker_count[speaker]
-            total = Sum([If(var == idx, 1, 0) for var in ctx.speaker_vars])
-            ctx.solver.add(total == count)
+    def add(self, solver):
+        for speaker in self.ctx.speakers:
+            idx = self.ctx.speaker_indices[speaker]
+            count = self.ctx.speaker_count[speaker]
+            total = Sum([If(var == idx, 1, 0) for var in self.ctx.speaker_vars])
+            solver.add(total == count)

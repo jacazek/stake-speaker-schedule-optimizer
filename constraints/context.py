@@ -13,7 +13,6 @@ class ConstraintContext:
         num_speakers,
         num_unit_months,
         speaker_vars,
-        solver,
     ):
         self.speakers = speakers
         self.speaker_count = speaker_count
@@ -25,4 +24,3 @@ class ConstraintContext:
         self.num_speakers = num_speakers
         self.num_unit_months = num_unit_months
         self.speaker_vars = speaker_vars
-        self.solver = solver

@@ -36,15 +36,14 @@ ctx = ConstraintContext(
     num_speakers=num_speakers,
     num_unit_months=num_unit_months,
     speaker_vars=speaker_vars,
-    solver=solver,
 )
 
-VariableRangeConstraint().add(ctx)
-AssignmentCountsConstraint().add(ctx)
-NoRepeatVisitsConstraint().add(ctx)
-SpecialUnitLimitsConstraint().add(ctx)
-OverlapPreventionConstraint().add(ctx)
-SpeakerSpacingConstraint().add(ctx)
+VariableRangeConstraint(ctx).add(solver)
+AssignmentCountsConstraint(ctx).add(solver)
+NoRepeatVisitsConstraint(ctx).add(solver)
+SpecialUnitLimitsConstraint(ctx).add(solver)
+OverlapPreventionConstraint(ctx).add(solver)
+SpeakerSpacingConstraint(ctx).add(solver)
 
 # Check for solution
 if solver.check() == sat:
