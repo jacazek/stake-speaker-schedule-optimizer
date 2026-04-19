@@ -30,10 +30,33 @@ This tool solves the recurring problem of scheduling stake speakers (e.g., HC, S
 └── .gitignore
 ```
 
-## Requirements
+## Installation
 
-- Python 3.x
-- Z3 solver: `pip install z3-solver`
+1. Ensure Python 3.x is installed
+2. Create a virtual environment:
+
+```bash
+python3 -m venv venv
+```
+
+3. Activate the virtual environment:
+
+```bash
+# macOS / Linux
+source venv/bin/activate
+
+# Windows (Command Prompt)
+venv\Scripts\activate
+
+# Windows (PowerShell)
+venv\Scripts\Activate.ps1
+```
+
+4. Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
 
 ## How to Run
 
