@@ -1,5 +1,14 @@
 from z3 import *
-import itertools
+
+from constraints import (
+    AssignmentCountsConstraint,
+    ConstraintContext,
+    NoRepeatVisitsConstraint,
+    OverlapPreventionConstraint,
+    SpeakerSpacingConstraint,
+    SpecialUnitLimitsConstraint,
+    VariableRangeConstraint,
+)
 
 # Define speakers and their allowed number of assignments
 speakers = [
@@ -60,12 +69,6 @@ for unit, months in units.items():
         unit_month_pairs.append((unit, month))
         quarter_map[(unit, month)] = get_quarter(month)
 
-period_map = {
-    'Jan': 1, 'Feb': 1, 'March': 1, 'April': 1,
-    'May': 2, 'June': 2, 'July': 2, 'Aug': 2,
-    'Sep': 3, 'Oct': 3, 'Nov': 3, 'Dec': 3
-}
-
 # Map speakers to indices
 speaker_indices = {s: i for i, s in enumerate(speakers)}
 num_speakers = len(speakers)
@@ -77,169 +80,34 @@ speaker_vars = [Int(f'speaker_{i}') for i in range(num_unit_months)]
 # Initialize solver
 solver = Optimize()
 
+# Build context and add constraints
+ctx = ConstraintContext(
+    speakers=speakers,
+    speaker_count=speaker_count,
+    speaker_interval=speaker_interval,
+    units=units,
+    unit_month_pairs=unit_month_pairs,
+    quarter_map=quarter_map,
+    speaker_indices=speaker_indices,
+    num_speakers=num_speakers,
+    num_unit_months=num_unit_months,
+    speaker_vars=speaker_vars,
+    solver=solver,
+)
 
+VariableRangeConstraint().add(ctx)
+AssignmentCountsConstraint().add(ctx)
+NoRepeatVisitsConstraint().add(ctx)
+SpecialUnitLimitsConstraint().add(ctx)
+OverlapPreventionConstraint().add(ctx)
+SpeakerSpacingConstraint().add(ctx)
 
-a1, a2, a3, a4, a5 = Bools('a1 a2 a3 a4 a5')
-
-# Constraint 1: Each speaker variable must be in the range of speakers
-for var in speaker_vars:
-    solver.add(And(0 <= var, var < num_speakers))
-
-
-
-
-
-
-# Constraint 2: Each speaker must have exactly their permitted number of assignments
-for speaker in speakers:
-    idx = speaker_indices[speaker]
-    count = speaker_count[speaker]
-    total = Sum([If(var == idx, 1, 0) for var in speaker_vars])
-    solver.add(total == count)
-
-
-
-
-
-
-# Constraint 3: No speaker can speak at the same unit more than once
-unit_to_indices = {}
-for i, (unit, month) in enumerate(unit_month_pairs):
-    if unit not in unit_to_indices:
-        unit_to_indices[unit] = []
-    unit_to_indices[unit].append(i)
-for unit, indices in unit_to_indices.items():
-    for speaker_idx in range(num_speakers):
-        total = Sum([If(speaker_vars[i] == speaker_idx, 1, 0) for i in indices])
-        solver.add(total <= 1)
-
-
-
-
-
-
-# Constraint 4: Each speaker must have at most 2 assignments in special units unless they are SS or YM
-special_units = ['Durham 5th', 'Roxboro', 'FSLG-CH1']
-for speaker_idx in range(num_speakers):
-    total = 0
-    speaker = speakers[speaker_idx]
-
-    for unit in special_units:
-        if unit in unit_to_indices:
-            for i in unit_to_indices[unit]:
-                total += If(speaker_vars[i] == speaker_idx, 1, 0)
-    if speaker == 'SS' or speaker == 'YM':
-        solver.add(total <= 1)
-    else:
-        solver.add(total <= 2)
-
-
-
-# Constraint 5: Prevent SS and SSP from being scheduled in the same month
-index_SS = speaker_indices['SS']
-index_SSP = speaker_indices['SSP']
-months = set()
-for unit, months_list in units.items():
-    months.update(months_list)
-for month in months:
-    indices = [i for i, (_, m) in enumerate(unit_month_pairs) if m == month]
-    if not indices:
-        continue
-    A = Or([speaker_vars[i] == index_SS for i in indices])
-    B = Or([speaker_vars[i] == index_SSP for i in indices])
-    solver.add(Not(And(A, B)))
-
-
-# Constraint 6: Prevent YM and YMP from being scheduled in the same month
-index_YM = speaker_indices['YM']
-index_YMP = speaker_indices['YMP']
-months = set()
-for unit, months_list in units.items():
-    months.update(months_list)
-for month in months:
-    indices = [i for i, (_, m) in enumerate(unit_month_pairs) if m == month]
-    if not indices:
-        continue
-    A = Or([speaker_vars[i] == index_YM for i in indices])
-    B = Or([speaker_vars[i] == index_YMP for i in indices])
-    solver.add(Not(And(A, B)))
-
-
-
-
-# Precompute month order for distance checks
-month_order = {
-    'Jan': 1, 'Feb': 2, 'March': 3, 'April': 4, 'May': 5, 'June': 6,
-    'July': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12
-}
-
-# Constraint 7: For each speaker, every pair of assignments must be at least `min_months` apart,
-# where `min_months` depends on the speaker's total assignment count.
-# - 3 assignments (HC, SSP, YMP) → min 4 months apart (some HC are 3 months apart as they must be scheduled in the last
-# - 4 assignments (PRI, RS, YW) → min 3 months apart
-# - 2 assignments → min 6 months apart
-# (Note: We skip speakers with 1 assignment since no pairs exist.)
-soft_months = {
-    2: 6,
-    3: 4,
-    4: 3
-}
-
-hard_months = {
-    2: 6,
-    3: 3,
-    4: 3
-}
-
-weights = {
-    # Higher weight is higher priority
-    2: 7, # YM, SS
-    3: 5, # HC, SSP, YMP
-    4: 10 # RS, PRI, YW
-}
-for speaker in speakers:
-    idx = speaker_indices[speaker]
-    count = speaker_count[speaker]
-    interval = speaker_interval[speaker]
-
-    # Skip if fewer than 2 assignments (no pairs to check)
-    if count < 2:
-        continue
-
-    # Define minimum required month gap based on count
-    # min_soft_months = soft_months.get(count, 1)  # Default to 1 if not in map (shouldn't happen)
-    # soft_weight = weights.get(count, 1)
-    # min_hard_months = hard_months.get(count, 1)
-
-
-    # Check all pairs of unit-month indices for this speaker
-    for i in range(num_unit_months):
-        for j in range(i + 1, num_unit_months):
-            unit_i, month_i = unit_month_pairs[i]
-            unit_j, month_j = unit_month_pairs[j]
-            m1, m2 = month_order[month_i], month_order[month_j]
-            month_diff = abs(m2 - m1)
-
-            # If both assignments are to this speaker, enforce month_diff >= min_months
-            # solver.add_soft(Or(
-            #     speaker_vars[i] != idx,
-            #     speaker_vars[j] != idx,
-            #     month_diff >= min_soft_months
-            # ), weight=soft_weight)
-
-            solver.add(Or(
-                speaker_vars[i] != idx,
-                speaker_vars[j] != idx,
-                month_diff >= interval
-            ))
-
-
-
-
-
+# Add optimization objective to make solver deterministic
+# Minimize the sum of speaker variables to prefer lower indices
+# solver.minimize(Sum(ctx.speaker_vars))
 
 # Check for solution
-if solver.check(a1, a2, a3, a4, a5) == sat:
+if solver.check() == sat:
     model = solver.model()
     assignments = []
     for i in range(num_unit_months):
