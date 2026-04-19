@@ -1,5 +1,6 @@
 .venv
 .idea/
 *.csv
+!speakers.csv
 test_snapshot.txt
 

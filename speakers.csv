@@ -1,0 +1,17 @@
+speaker_id,assignment_count,interval,name
+HC1,3,3,High Councilor 1
+HC2,3,3,High Councilor 2
+HC3,3,3,High Councilor 3
+HC4,3,3,High Councilor 4
+HC5,3,3,High Councilor 5
+HC6,3,4,High Councilor 6
+HC7,3,4,High Councilor 7
+HC8,3,3,High Councilor 8
+HC9,3,3,High Councilor 9
+SSP,3,4,Sunday School President
+YMP,3,4,Young Men President
+SS,2,6,Sunday School
+YM,2,6,Young Men
+YW,4,3,Young Women
+RS,4,3,Relief Society
+PRI,4,3,Primary
