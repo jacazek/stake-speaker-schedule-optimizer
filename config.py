@@ -1,5 +1,6 @@
 """Static configuration for the speaker schedule optimizer."""
 
+import csv
 from enum import Enum
 
 
@@ -24,25 +25,20 @@ class Month(str, Enum):
         return {m.value: m for m in cls}
 
 
-# Define speakers and their allowed number of assignments
-speakers = [
-    'HC1', 'HC2', 'HC3', 'HC4', 'HC5', 'HC6', 'HC7', 'HC8', 'HC9', 'SSP', 'YMP',
-    'SS',  'YM',
-    'YW', 'RS', 'PRI'
-]
+# Load speaker data from speakers.csv
+_csv_path = "speakers.csv"
 
-speaker_count = {
-    'HC1': 3, 'HC2': 3, 'HC3': 3, 'HC4': 3, 'HC5': 3, 'HC6': 3, 'HC7': 3, 'HC8': 3, 'HC9': 3, 'SSP': 3, 'YMP': 3,
-    'YM': 2, 'SS': 2,
-    'YW': 4, 'RS': 4, 'PRI': 4
-}
+speakers = []
+speaker_count = {}
+speaker_interval = {}
 
-speaker_interval = {
-    'HC6': 4, 'HC7': 4, 'HC8': 3, 'HC9': 3, 'SSP': 4, 'YMP': 4,
-    'HC1': 3, 'HC2': 3, 'HC3': 3, 'HC4': 3, 'HC5': 3,
-    'YM': 6, 'SS': 6,
-    'YW': 3, 'RS': 3, 'PRI': 3
-}
+with open(_csv_path, newline="") as f:
+    reader = csv.DictReader(f)
+    for row in reader:
+        sid = row["speaker_id"]
+        speakers.append(sid)
+        speaker_count[sid] = int(row["assignment_count"])
+        speaker_interval[sid] = int(row["interval"])
 
 # Define units and their available months
 ALL_MONTHS = [Month.JAN, Month.FEB, Month.MAR, Month.APR, Month.MAY, Month.JUN,
