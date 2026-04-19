@@ -54,7 +54,7 @@ if solver.check() == sat:
         unit, month = unit_month_pairs[i]
         speaker_idx = model[speaker_vars[i]].as_long()
         speaker = config.speakers[speaker_idx]
-        assignments.append((unit, month, speaker))
+        assignments.append((unit, month.value, speaker))
 
     # Print the result in tabular format
     print("Unit,Month,Speaker")

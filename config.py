@@ -1,5 +1,29 @@
 """Static configuration for the speaker schedule optimizer."""
 
+from enum import Enum
+
+
+class Month(str, Enum):
+    """Months used by units for speaking assignments."""
+    JAN = 'January'
+    FEB = 'February'
+    MAR = 'March'
+    APR = 'April'
+    MAY = 'May'
+    JUN = 'June'
+    JUL = 'July'
+    AUG = 'August'
+    SEP = 'September'
+    OCT = 'October'
+    NOV = 'November'
+    DEC = 'December'
+
+    @classmethod
+    def by_value(cls):
+        """Return a dict mapping month string value to Month enum member."""
+        return {m.value: m for m in cls}
+
+
 # Define speakers and their allowed number of assignments
 speakers = [
     'HC1', 'HC2', 'HC3', 'HC4', 'HC5', 'HC6', 'HC7', 'HC8', 'HC9', 'SSP', 'YMP',
@@ -21,25 +45,33 @@ speaker_interval = {
 }
 
 # Define units and their available months
+ALL_MONTHS = [Month.JAN, Month.FEB, Month.MAR, Month.APR, Month.MAY, Month.JUN,
+              Month.JUL, Month.AUG, Month.SEP, Month.OCT, Month.NOV, Month.DEC]
+
 units = {
-    'Durham 5th': ['Jan', 'Feb', 'March', 'April', 'May', 'June', 'July', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-    'Roxboro': ['Jan', 'Feb', 'March', 'April', 'May', 'June', 'July', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-    'Durham YSA': ['June', 'Sep', 'Dec'],
-    'Chapel Hill 1st': ['June', 'Sep', 'Dec'],
-    'Chapel Hill 2nd': ['April', 'July', 'Oct'],
-    'Durham 1st': ['May', 'Aug', 'Nov'],
-    'Durham 2nd': ['June', 'Sep', 'Dec'],
-    'Hillsborough': ['May', 'Aug', 'Nov'],
-    'Mebane': ['April', 'July', 'Oct'],
-    'FSLG-CH1': ['Jan', 'April', 'July', 'Oct']
+    'Durham 5th': ALL_MONTHS,
+    'Roxboro': ALL_MONTHS,
+    'Durham YSA': [Month.JUN, Month.SEP, Month.DEC],
+    'Chapel Hill 1st': [Month.JUN, Month.SEP, Month.DEC],
+    'Chapel Hill 2nd': [Month.APR, Month.JUL, Month.OCT],
+    'Durham 1st': [Month.MAY, Month.AUG, Month.NOV],
+    'Durham 2nd': [Month.JUN, Month.SEP, Month.DEC],
+    'Hillsborough': [Month.MAY, Month.AUG, Month.NOV],
+    'Mebane': [Month.APR, Month.JUL, Month.OCT],
+    'FSLG-CH1': [Month.JAN, Month.APR, Month.JUL, Month.OCT],
 }
 
 # Month-to-quarter lookup
 month_to_quarter = {
-    **dict.fromkeys(['Jan', 'Feb', 'March'], 1),
-    **dict.fromkeys(['April', 'May', 'June'], 2),
-    **dict.fromkeys(['July', 'Aug', 'Sep'], 3),
-    **dict.fromkeys(['Oct', 'Nov', 'Dec'], 4),
+    Month.JAN: 1, Month.FEB: 1, Month.MAR: 1,
+    Month.APR: 2, Month.MAY: 2, Month.JUN: 2,
+    Month.JUL: 3, Month.AUG: 3, Month.SEP: 3,
+    Month.OCT: 4, Month.NOV: 4, Month.DEC: 4,
+}
+
+month_index = {
+    Month.JAN: 1, Month.FEB: 2, Month.MAR: 3, Month.APR: 4, Month.MAY: 5, Month.JUN: 6,
+    Month.JUL: 7, Month.AUG: 8, Month.SEP: 9, Month.OCT: 10, Month.NOV: 11, Month.DEC: 12
 }
 
 

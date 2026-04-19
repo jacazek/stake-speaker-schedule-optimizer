@@ -21,6 +21,6 @@ for row in reader:
         row['Speaker'] = speaker_map[speaker_id]
     else:
         # Optional: log missing IDs to stderr
-        # sys.stderr.write(f"Warning: Missing speaker ID '{speaker_id}'\n")
+        sys.stderr.write(f"Warning: Missing speaker ID '{speaker_id}'\n")
         pass
     writer.writerow(row)
