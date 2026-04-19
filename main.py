@@ -13,6 +13,18 @@ speaker_count = {
     'YW': 4, 'RS': 4, 'PRI': 4
 }
 
+speaker_interval = {
+    # Those who speak 3 times should speak every 4 months
+    'HC6': 4, 'HC7': 4, 'HC8': 3, 'HC9': 3, 'SSP': 4, 'YMP': 4,
+    # There are not enough speaking slots in the first quarter/third of the year for 4-month interval for all HC speakers
+    # Therefore some are assigned 3-month intervals as all 3 of their assignments will happen in the last 3 quarters of the year
+    'HC1': 3, 'HC2': 3, 'HC3': 3, 'HC4': 3, 'HC5': 3,
+    # Those who speak 2 times should speak every 6 months
+    'YM': 6, 'SS': 6,
+    # Those who speak 4 times should speak every 3 months
+    'YW': 3, 'RS': 3, 'PRI': 3
+}
+
 # Define units and their months
 units = {
     'Durham 5th': ['Jan', 'Feb', 'March', 'April', 'May', 'June', 'July', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
@@ -106,15 +118,21 @@ for unit, indices in unit_to_indices.items():
 
 
 
-# Constraint 4: Each speaker must have at most 2 assignments in special units
+# Constraint 4: Each speaker must have at most 2 assignments in special units unless they are SS or YM
 special_units = ['Durham 5th', 'Roxboro', 'FSLG-CH1']
 for speaker_idx in range(num_speakers):
     total = 0
+    speaker = speakers[speaker_idx]
+
     for unit in special_units:
         if unit in unit_to_indices:
             for i in unit_to_indices[unit]:
                 total += If(speaker_vars[i] == speaker_idx, 1, 0)
-    solver.add(total <= 2)
+    if speaker == 'SS' or speaker == 'YM':
+        solver.add(total <= 1)
+    else:
+        solver.add(total <= 2)
+
 
 
 # Constraint 5: Prevent SS and SSP from being scheduled in the same month
@@ -157,8 +175,8 @@ month_order = {
 
 # Constraint 7: For each speaker, every pair of assignments must be at least `min_months` apart,
 # where `min_months` depends on the speaker's total assignment count.
-# - 3 assignments → min 4 months apart
-# - 4 assignments → min 3 months apart
+# - 3 assignments (HC, SSP, YMP) → min 4 months apart (some HC are 3 months apart as they must be scheduled in the last
+# - 4 assignments (PRI, RS, YW) → min 3 months apart
 # - 2 assignments → min 6 months apart
 # (Note: We skip speakers with 1 assignment since no pairs exist.)
 soft_months = {
@@ -182,15 +200,16 @@ weights = {
 for speaker in speakers:
     idx = speaker_indices[speaker]
     count = speaker_count[speaker]
+    interval = speaker_interval[speaker]
 
     # Skip if fewer than 2 assignments (no pairs to check)
     if count < 2:
         continue
 
     # Define minimum required month gap based on count
-    min_soft_months = soft_months.get(count, 1)  # Default to 1 if not in map (shouldn't happen)
-    soft_weight = weights.get(count, 1)
-    min_hard_months = hard_months.get(count, 1)
+    # min_soft_months = soft_months.get(count, 1)  # Default to 1 if not in map (shouldn't happen)
+    # soft_weight = weights.get(count, 1)
+    # min_hard_months = hard_months.get(count, 1)
 
 
     # Check all pairs of unit-month indices for this speaker
@@ -211,7 +230,7 @@ for speaker in speakers:
             solver.add(Or(
                 speaker_vars[i] != idx,
                 speaker_vars[j] != idx,
-                month_diff >= min_hard_months
+                month_diff >= interval
             ))
 
 
