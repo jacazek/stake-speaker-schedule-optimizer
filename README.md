@@ -81,25 +81,29 @@ This outputs a CSV to stdout with columns: `Unit,Month,Speaker` (using speaker I
 Save the output to a file:
 
 ```bash
-python main.py > test_snapshot.csv
+python main.py > schedule.csv
 ```
 
 ### 2. Format the schedule
 
-Run the pipeline script to sort and expand names:
+The pipeline script accepts a CSV filename as `$1`, or reads from stdin if no argument is given:
 
 ```bash
-bash export_final_schedule.sh
+# Pipe from main.py directly
+python main.py | bash export_final_schedule.sh
+
+# Or pass a filename
+bash export_final_schedule.sh schedule.csv
 ```
 
-This reads `test_snapshot.csv` and pipes it through the mappers to produce `final_schedule.csv` with human-readable unit names, speaker names, and full month names.
+This pipes the data through the mappers to produce `final_schedule.csv` with human-readable unit names, speaker names, and full month names.
 
 ### 3. (Optional) Add dates
 
 The `inject_date.py` mapper computes the third Sunday of each month (the typical stake speaker date) and adds a `Date` column. Include it in the pipeline:
 
 ```bash
-cat test_snapshot.csv \
+cat schedule.csv \
   | python mappers/sort-by-month.py \
   | python mappers/speaker-name-mapper.py \
   | python mappers/unit-name-mapper.py \
